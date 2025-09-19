@@ -1,0 +1,8 @@
+              precision    recall  f1-score   support
+
+        LoRa     0.8403    0.9848    0.9068      2500
+    Non-LoRa     0.9816    0.8128    0.8893      2500
+
+    accuracy                         0.8988      5000
+   macro avg     0.9110    0.8988    0.8980      5000
+weighted avg     0.9110    0.8988    0.8980      5000

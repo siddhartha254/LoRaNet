@@ -1,0 +1,11 @@
+Model: LoRa vs Non-LoRa Classifier
+Timestamp: 20250517_064021
+Total Parameters: 984,706
+Best Validation Accuracy: 93.95% (Epoch 53)
+
+SNR Level Accuracies:
+  SNR -30dB: 51.20%
+  SNR -20dB: 98.20%
+  SNR -10dB: 100.00%
+  SNR 0dB: 100.00%
+  SNR 10dB: 100.00%

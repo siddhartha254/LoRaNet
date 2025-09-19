@@ -1,0 +1,349 @@
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+% The preceding line is only needed to identify funding in the first footnote. If that is unneeded, please comment it out.
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{algorithmic}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage{url}
+\usepackage{booktabs} % For better table rules
+\usepackage{multirow} % For multirow cells in tables
+\usepackage{caption} % For customizing captions
+\usepackage{subcaption} % For subfigures, if needed separately
+\usepackage{adjustbox} % For adjusting table/figure sizes
+
+\def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
+    T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
+
+\begin{document}
+\title{LoraNet: Robust LoRa Signal Classification using Deep Convolutional Neural Networks and Spectrograms}
+
+\author{
+\IEEEauthorblockN{Shashwat Srivastava}
+\IEEEauthorblockA{\textit{Department of Electrical Engineering} \\
+\textit{Indian Institute of Technology, Ropar}\\
+Rupnagar, India \\
+2021eeb1210@iitrpr.ac.in}
+\and
+\IEEEauthorblockN{Siddhartha Arora}
+\IEEEauthorblockA{\textit{Department of Electrical Engineering} \\
+\textit{Indian Institute of Technology, Ropar}\\
+Rupnagar, India \\
+2021eeb1213@iitrpr.ac.in}
+\and
+\IEEEauthorblockN{Satyam Agarwal}
+\IEEEauthorblockA{\textit{Department of Electrical Engineering} \\
+\textit{Indian Institute of Technology, Ropar}\\
+Rupnagar, India \\
+satyam@iitrpr.ac.in}
+}
+
+\maketitle
+
+\begin{abstract}
+LoRa (Long Range) technology is a cornerstone for many Low-Power Wide-Area Network (LPWAN) applications, demanding reliable signal detection for efficient spectrum utilization and robust communication. This paper introduces LoraNet, a Convolutional Neural Network (CNN) specifically designed for the binary classification of LoRa signals—distinguishing LoRa transmissions from Non-LoRa signals (e.g., noise or other interference) using their spectrogram representations. A comprehensive dataset was curated, featuring LoRa signals generated with diverse parameters (spreading factor, bandwidth). These, along with Non-LoRa samples (consisting of single-tone sine waves), were embedded in additive white Gaussian noise across a challenging signal-to-noise ratio (SNR) range of -30 dB to +10 dB. LoraNet leverages a deep CNN architecture to learn discriminative features from these spectrograms. Experimental results demonstrate strong performance, with LoraNet achieving an overall accuracy of 89.88\% on the test set. Notably, it achieves 51.20\% accuracy at -30dB SNR, 98.20\% at -20dB SNR, and 100.00\% accuracy at SNRs of -10dB and above. This highlights its robustness and effectiveness, particularly in low SNR conditions where traditional signal processing techniques often struggle. This work underscores the potential of deep learning for highly reliable LoRa signal presence detection in complex radio environments.
+\end{abstract}
+
+\begin{IEEEkeywords}
+LoRa, LPWAN, Deep Learning, CNN, Spectrogram, Signal Classification, Spectrum Sensing, Interference Mitigation.
+\end{IEEEkeywords}
+
+\section{Introduction}
+The proliferation of Internet of Things (IoT) devices has driven the demand for robust and efficient Low-Power Wide-Area Network (LPWAN) technologies. Among these, LoRa (Long Range) has gained significant traction due to its long-range communication capabilities, low power consumption, and resilience to interference \cite{b_lora_survey}. Accurate detection and classification of LoRa signals are fundamental for various applications, including spectrum monitoring, cognitive radio, interference mitigation, and dynamic spectrum access. The core challenge lies in reliably identifying LoRa signals, especially in noisy environments or when their power levels are very low, and distinguishing them from other signals or ambient noise (Non-LoRa).
+
+Traditional signal processing techniques for LoRa detection often rely on preamble correlation or cyclostationary feature analysis \cite{b_kang2022, b_vangelista2024}. While effective under certain conditions, their performance can degrade significantly in low Signal-to-Noise Ratio (SNR) scenarios or in the presence of complex interference patterns. Machine learning (ML), and particularly Deep Learning (DL), has emerged as a powerful alternative, offering the ability to learn intricate features directly from raw or minimally processed signal data \cite{b_dl_comms_survey}.
+
+Several studies have explored DL for LoRa signal processing, including modulation classification and parameter estimation \cite{b_shahid2019, b_mutescu2025}. However, the fundamental task of binary presence detection (LoRa vs. Non-LoRa) with high reliability across a wide range of SNRs, especially very low ones, remains a critical area. Many existing DL approaches show performance drops at SNRs below 0 dB \cite{b_shahid2019}.
+
+This paper proposes LoraNet, a Convolutional Neural Network (CNN) architecture tailored for classifying LoRa signals against Non-LoRa signals using spectrogram inputs. We demonstrate that by training LoraNet on a carefully generated dataset encompassing LoRa signals with varied parameters and SNRs from -30 dB to +10 dB, it is possible to achieve high classification accuracy, particularly in challenging low-SNR regimes. Our contributions are:
+\begin{itemize}
+    \item Development of LoraNet, a CNN model for robust binary LoRa signal classification.
+    \item Creation of a diverse spectrogram dataset of LoRa signals with randomized parameters (Spreading Factor, Bandwidth) and a wide SNR range (-30 dB to +10 dB), alongside Non-LoRa examples composed of single-tone sinewaves.
+    \item Demonstration of 89.88\% overall test accuracy, with excellent performance at low SNRs (e.g., 98.20\% at -20dB, 100.00\% at -10dB), showcasing superior robustness, particularly when compared to the performance degradation observed in some prior DL models at similar low SNR levels.
+\end{itemize}
+The structure of this paper is as follows: Section \ref{sec:related_work} reviews existing work. Section \ref{sec:dataset} details the dataset generation. Section \ref{sec:loranet_arch} describes the LoraNet architecture. Section \ref{sec:experiments} presents the experimental setup and results. Section \ref{sec:discussion} discusses the findings, and Section \ref{sec:conclusion} concludes the paper.
+
+\section{Related Work}
+\label{sec:related_work}
+The detection and classification of LoRa signals have been addressed through various signal processing and machine learning techniques.
+Shahid et al. \cite{b_shahid2019} employed a CNN to classify LoRa signals among other LPWAN protocols using raw I/Q samples. They reported high accuracy (around 95\%) at favorable SNRs, but performance significantly degraded at lower SNRs, dropping below 70\% at 0 dB and to approximately 25\% at -10 dB. This highlights the difficulty of maintaining robustness in low-SNR conditions.
+Tesfay et al. \cite{b_tesfay2021} proposed HybNet, a hybrid system combining traditional signal processing with a CNN for uplink LoRa signal detection. Their framework adapts between a matched filter and a CNN based on interference levels, showing improved performance in heavy interference. While effective, this hybrid approach adds complexity compared to a standalone learned detector.
+Focusing on classical signal processing, Kang \cite{b_kang2022} optimized threshold-based LoRa preamble detection to maximize detection probability under false-alarm constraints. This work improves upon heuristic threshold selection but, like other preamble-based methods, may be sensitive to preamble corruption or variations.
+Tapparel et al. \cite{b_tapparel2023} addressed LoRa preamble detection robustness against inter-channel interference from other LoRa signals. They developed a new detection method offering near-optimal performance in such scenarios, primarily through advanced signal processing.
+Vangelista and Calvagno \cite{b_vangelista2024} studied LoRaWAN Channel Activity Detection (CAD), proposing an implementation and evaluating its performance in AWGN. This provides a baseline for signal-processing-based LoRa presence detection, which often forms the basis for listen-before-talk mechanisms.
+Horne et al. \cite{b_horne2023} demonstrated a real-time LoRa signal classification system on an RFSoC platform, capable of detecting LoRa transmissions and extracting key parameters. This work emphasizes practical deployment and real-time processing.
+Mutescu et al. \cite{b_mutescu2025} proposed a hybrid spectrum sensing framework using initial signal processing for transmission detection, followed by a CNN for classification and analysis (including LoRa identification). This multi-stage approach aims for comprehensive signal characterization.
+
+While the aforementioned studies have advanced LoRa signal processing, achieving robust binary presence detection (LoRa vs. Non-LoRa) with high reliability across an extensive and very challenging SNR range using a direct deep learning approach remains a key objective. Our work, LoraNet, addresses this by employing a CNN on spectrogram inputs. We aim to demonstrate superior robustness, particularly from -30 dB to +10 dB, showcasing high accuracy where conventional methods or other DL models might falter. The anticipated performance, especially at extremely low SNRs, highlights the potential of a tailored CNN for this foundational detection task.
+
+\section{Dataset Generation}
+\label{sec:dataset}
+A custom dataset of spectrogram images was generated to train and evaluate LoraNet, comprising two classes: "LoRa" and "Non-LoRa". The parameters for dataset generation are summarized in Table \ref{tab:dataset_params}. The total dataset consists of 15,000 samples.
+
+\begin{table}[htbp]
+\centering
+\caption{Dataset Generation Parameters and Values}
+\label{tab:dataset_params}
+\begin{tabular}{lll}
+\toprule
+\textbf{Parameter} & \textbf{Value / Range} & \textbf{Notes} \\
+\midrule
+Fs (sampling rate) & 1\,000\,000 Hz (1 MHz) & Typical for LoRa. \\
+Duration T & Uniform in [0.05\,s, 1.0\,s] & Varying signal lengths. \\
+Train samples/class & 4\,000 & $\rightarrow$ 8\,000 total train. \\
+Val samples/class & 1\,000 & $\rightarrow$ 2\,000 total val. \\
+Test bins (SNR) & \{-30, -20, -10, 0, +10\}\,dB & 5 discrete levels. \\
+Test samples/bin/class & 500 & $\rightarrow$ 5\,000 total test. \\
+\textbf{Total images} & \textbf{15\,000} & Train+Val+Test \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Signal Generation ("LoRa" vs "Non-LoRa")}
+\textbf{LoRa (generate\_lora):}
+\begin{itemize}
+    \item Spreading Factor (SF): Uniform integer in $\{7,\dots,12\}$.
+    \item Bandwidth (BW): Randomly 125\,kHz or 250\,kHz.
+    \item Construction: Classic up-chirp formula, symbol-by-symbol, filling the real part of the complex chirp.
+    \item Result: A rich, varying chirp whose time-frequency slope depends on SF and BW, with a random number of symbols filling duration T.
+\end{itemize}
+
+\textbf{Non-LoRa (generate\_nonlora):}
+\begin{itemize}
+    \item Frequency $f_0$: Uniform in [50\,kHz, 200\,kHz].
+    \item Signal: Single-tone sine wave of duration T.
+    \item Result: A pure tone whose frequency randomly drifts across the specified band.
+\end{itemize}
+Fig. \ref{fig:sample_spectrograms} shows example spectrograms for both classes.
+
+\begin{figure}[tbp]
+\centerline{\includegraphics[width=0.72\linewidth]{sample_spectrograms.png}} % Keep existing sample spectrograms
+\caption{Example spectrograms from the dataset. Top row: LoRa signals with varying characteristics. Bottom row: Non-LoRa signals (single-tone sinewaves).}
+\label{fig:sample_spectrograms}
+\end{figure}
+
+\subsection{Noise Addition}
+For each sample:
+\begin{itemize}
+    \item Signal power $P_s = \text{mean}(x^2)$ is computed.
+    \item Desired noise power $P_n = P_s / 10^{(\text{SNR}_{\text{dB}}/10)}$ is calculated.
+    \item Additive White Gaussian Noise (AWGN) $\mathcal{N}(0, \sqrt{P_n})$ is added to the signal.
+    \item Training/Validation SNR: Drawn continuously uniform from -30\,dB to +10\,dB.
+    \item Test SNR: Fixed at each of the five discrete levels specified in Table \ref{tab:dataset_params}.
+\end{itemize}
+
+\subsection{Spectrogram Conversion}
+Time-domain signals were converted into spectrograms using a Short-Time Fourier Transform (STFT) via \texttt{torch.stft}. The key STFT parameters were:
+\begin{itemize}
+    \item \texttt{n\_fft} = 256
+    \item \texttt{hop\_length} = 56 (implying an overlap of 200 samples with \texttt{win\_length} = 256)
+    \item \texttt{win\_length} = 256 (a Hamming window was used)
+\end{itemize}
+
+The power spectrogram $|S|^2$ was computed, then converted to dB scale: $10\log_{10}(|S|^2 + 10^{-10})$. Spectrograms were saved as 300$\times$300 pixel PNG images (generated from a 2$\times$2 inch figure at 150 dpi) with axes and color bars removed to present only the spectral information. The frequency axis spans 0 to Fs/2 (0-500 kHz) and the time axis spans 0 to T seconds.
+
+\section{LoraNet: Proposed Architecture}
+\label{sec:loranet_arch}
+LoraNet is a Convolutional Neural Network (CNN) designed for binary classification of LoRa signals from 3$\times$300$\times$300 RGB spectrogram images, outputting 2-way logits for \{LoRa, Non-LoRa\}. The architecture is detailed in Table \ref{tab:loranet_architecture}. It has a total of 984,706 trainable parameters.
+
+\begin{table*}[htbp]
+\centering
+\caption{LoraNet Architecture Details. All Conv layers use 3x3 kernels, padding=1.}
+\label{tab:loranet_architecture}
+\begin{tabular}{lllll}
+\toprule
+\textbf{Stage} & \textbf{Layer} & \textbf{Channels In $\rightarrow$ Out} & \textbf{Other Operations} & \textbf{Purpose / Output Size after Stage} \\
+\midrule
+Input & - & 3 (RGB) & - & Input Spectrogram (3x300x300) \\
+\midrule
+\multirow{3}{*}{Conv Block 1} & Conv1 & 3 $\rightarrow$ 16 & BatchNorm, ReLU & \multirow{3}{*}{Low-level features. Output: 32x150x150} \\
+& Conv2 & 16 $\rightarrow$ 32 & BatchNorm, ReLU & \\
+& MaxPool & 32 $\rightarrow$ 32 & 2x2 stride & \\
+\midrule
+\multirow{3}{*}{Conv Block 2} & Conv3 & 32 $\rightarrow$ 64 & BatchNorm, ReLU & \multirow{3}{*}{Mid-level features. Output: 128x75x75} \\
+& Conv4 & 64 $\rightarrow$ 128 & BatchNorm, ReLU & \\
+& MaxPool & 128 $\rightarrow$ 128 & 2x2 stride & \\
+\midrule
+\multirow{3}{*}{Conv Block 3} & Conv5 & 128 $\rightarrow$ 256 & BatchNorm, ReLU & \multirow{3}{*}{High-level features. Output: 256x37x37} \\
+& Conv6 & 256 $\rightarrow$ 256 & BatchNorm, ReLU & \\
+& MaxPool & 256 $\rightarrow$ 256 & 2x2 stride & \\
+\midrule
+\multirow{4}{*}{Global Processing \& Classifier} & AdaptiveAvgPool2d & 256 $\rightarrow$ 256 & Output target (1x1) & Global feature vector. Output: 256 features \\
+& Flatten & 256 features $\rightarrow$ 256 & - & Vectorize features \\
+& Dropout & 256 features $\rightarrow$ 256 & Rate = 0.5 & Regularization \\
+& Fully Connected (FC) & 256 features $\rightarrow$ 2 & - & Classification logits \\
+\midrule
+Output & - & 2 logits & (LoRa, Non-LoRa) & Final classification \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+The network employs three main convolutional blocks. Each block consists of two convolutional layers, where each convolutional layer is followed by Batch Normalization (BN) and a ReLU activation function. Each block concludes with a Max Pooling layer (2$\times$2 stride) to reduce spatial dimensions and provide a degree of translation invariance.
+\begin{itemize}
+    \item \textbf{Conv Block 1} processes the input spectrogram (3 channels) through Conv1 (3$\to$16 channels) and Conv2 (16$\to$32 channels), followed by Max Pooling. This block aims to learn low-level features like edges and basic time-frequency patterns.
+    \item \textbf{Conv Block 2} takes the 32-channel output from Block 1, passes it through Conv3 (32$\to$64 channels) and Conv4 (64$\to$128 channels), followed by Max Pooling. This block captures more complex, mid-level features such as segments of chirp slopes or harmonic structures.
+    \item \textbf{Conv Block 3} further processes the 128-channel features from Block 2 with Conv5 (128$\to$256 channels) and Conv6 (256$\to$256 channels), again followed by Max Pooling. This block is designed to extract higher-level abstractions and more global patterns from the spectrogram.
+\end{itemize}
+All convolutional layers utilize 3$\times$3 kernels with a padding of 1 to maintain spatial dimensions before pooling.
+
+Following the convolutional blocks, the \textbf{Global Processing \& Classifier} stage performs:
+\begin{itemize}
+    \item \textbf{AdaptiveAvgPool2d(1$\times$1)}: This layer reduces each of the 256 feature maps from the final convolutional block to a single value, resulting in a 256-dimensional feature vector. This makes the network robust to variations in input image size (though fixed here) and significantly reduces the number of parameters leading into the classifier.
+    \item \textbf{Flatten}: The 256 (channels) x 1 x 1 output from adaptive pooling is flattened into a 1D vector of 256 features.
+    \item \textbf{Dropout(0.5)}: A dropout layer with a probability of 0.5 is applied for regularization, helping to prevent overfitting by randomly zeroing out a fraction of the features during training.
+    \item \textbf{Fully Connected (FC) Layer}: Finally, a linear layer maps the 256 regularized features to 2 output logits. These logits represent the raw scores for the "LoRa" and "Non-LoRa" classes, which are then typically passed through a softmax function (implicitly handled by the CrossEntropyLoss during training) for probability calculation.
+\end{itemize}
+
+\subsection{Design Rationale}
+\begin{itemize}
+    \item \textbf{Progressive Feature Extraction}: The increasing channel depth (3 $\to$ 32 $\to$ 128 $\to$ 256) across convolutional blocks allows the network to learn a hierarchy of features, from simple textures to complex signal patterns.
+    \item \textbf{Stabilized Training}: Batch Normalization is applied after every convolutional layer to normalize the activations, which helps stabilize training, allows for higher learning rates, and can act as a regularizer.
+    \item \textbf{Spatial Hierarchy and Invariance}: Max Pooling layers progressively reduce the spatial dimensions of the feature maps, which helps in creating a hierarchical representation of features and provides a degree of local translation invariance.
+    \item \textbf{Regularization}: Dropout in the fully connected part of the network is a key technique to combat overfitting, especially with a moderately sized dataset.
+    \item \textbf{Efficiency and Robustness}: Global Average Pooling before the final classification layer significantly reduces the number of parameters compared to using large fully-connected layers directly on flattened convolutional feature maps, reducing the risk of overfitting and making the model more robust.
+\end{itemize}
+
+
+\section{Experiments and Results}
+\label{sec:experiments}
+\subsection{Experimental Setup}
+LoraNet was implemented using PyTorch and trained on an NVIDIA A100-SXM4-40GB GPU.
+\begin{itemize}
+    \item \textbf{Epochs}: The model was trained for 100 epochs.
+    \item \textbf{Optimizer}: Adam optimizer was used with an initial learning rate of $1 \times 10^{-3}$ and weight decay (L2 regularization) of $1 \times 10^{-4}$.
+    \item \textbf{Learning Rate Scheduler}: A \texttt{StepLR} scheduler was employed, reducing the learning rate by a factor of 0.1 (\texttt{gamma=0.1}) every 10 epochs (\texttt{step\_size=10}). The learning rate schedule is shown in Fig.~\ref{fig:lr_schedule}.
+    \item \textbf{Batch Size}: 32.
+    \item \textbf{Loss Function}: \texttt{CrossEntropyLoss}, which combines LogSoftmax and Negative Log Likelihood Loss, suitable for classification tasks.
+
+    \item \textbf{Data Preprocessing}: Input spectrogram PNGs were resized to 300$\times$300 pixels, converted to PyTorch tensors (scaling pixel values to [0,1]), and then normalized (mean=[0.5,0.5,0.5], std=[0.5,0.5,0.5]) to center data around zero.
+\end{itemize}
+
+\begin{figure}[tbp]
+\centerline{\includegraphics[width=0.9\linewidth]{learning_rate.png}}
+\caption{Learning Rate Schedule over 100 Epochs.}
+\label{fig:lr_schedule}
+\end{figure}
+
+\subsection{Performance Metrics}
+Standard classification metrics were used: Accuracy, Precision, Recall, F1-Score, and the Confusion Matrix.
+
+\subsection{Results and Analysis}
+
+\subsubsection{Training and Validation Performance}
+Fig. \ref{fig:learning_curves} displays the training and validation loss and accuracy curves over 100 epochs. The training loss consistently decreases, while the training accuracy steadily improves, approaching near-perfect values. The validation accuracy shows a healthy learning trend, peaking at a \textbf{Best Validation Accuracy of 93.95\% at Epoch 53}. Both validation loss and accuracy curves indicate good generalization without significant overfitting, as the validation loss remains low and stable after an initial decrease, and validation accuracy stays high.
+
+\begin{figure}[tbp]
+\centerline{\includegraphics[width=\linewidth]{learning_curves.png}}
+\caption{Training and Validation Metrics: (Left) Loss vs. Epochs, (Right) Accuracy (\%) vs. Epochs.}
+\label{fig:learning_curves}
+\end{figure}
+
+\subsubsection{Test Set Performance}
+On the unseen test set of 5,000 samples, LoraNet achieved an overall **accuracy of 89.88\%**.
+The confusion matrix, shown in Fig. \ref{fig:confusion_matrix_new}, details the classification performance on the test set. For the "LoRa" class, there were 2462 True Positives and 38 False Negatives. For the "Non-LoRa" class, there were 2032 True Negatives and 468 False Positives.
+
+\begin{figure}[tbp]
+\centerline{\includegraphics[width=0.8\linewidth]{confusion_matrix.png}} % Use the new confusion matrix image
+\caption{Confusion Matrix for the Test Set (Total 5000 samples).}
+\label{fig:confusion_matrix_new}
+\end{figure}
+
+The detailed classification report is provided in Table \ref{tab:classification_report_new}. The model shows high precision for Non-LoRa (0.9816) and high recall for LoRa (0.9848).
+
+\begin{table}[htbp]
+\caption{Classification Report for LoraNet on the Test Set}
+\begin{center}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Class} & \textbf{Precision} & \textbf{Recall} & \textbf{F1-Score} & \textbf{Support} \\
+\midrule
+LoRa           & 0.8403    & 0.9848    & 0.9068      & 2500       \\
+Non-LoRa       & 0.9816    & 0.8128    & 0.8893      & 2500       \\
+\midrule
+\textbf{Accuracy} & & & \textbf{0.8988} & \textbf{5000} \\
+\textbf{Macro Avg} & 0.9110 & 0.8988 & 0.8980 & 5000 \\
+\textbf{Weighted Avg} & 0.9110 & 0.8988 & 0.8980 & 5000 \\
+\bottomrule
+\end{tabular}
+\label{tab:classification_report_new}
+\end{center}
+\end{table}
+
+\subsubsection{Impact of SNR on Test Accuracy}
+The performance of LoraNet across different SNR levels on the test set is summarized in Table \ref{tab:snr_accuracy_summary} and visualized in Fig. \ref{fig:snr_accuracy_new}.
+The model demonstrates remarkable robustness, achieving perfect accuracy from -10dB SNR upwards. Even at a very challenging -20dB SNR, the accuracy is exceptionally high (98.20\%). At -30dB, the accuracy is slightly above chance level, indicating the extreme difficulty of detection at this noise level, yet still capturing some signal characteristics.
+
+\begin{table}[htbp]
+\centering
+\caption{LoraNet Test Accuracy at Different SNR Levels}
+\label{tab:snr_accuracy_summary}
+\begin{adjustbox}{max width=\linewidth} % Ensure table fits
+\begin{tabular}{cc}
+\toprule
+\textbf{SNR (dB)} & \textbf{Accuracy (\%)} \\
+\midrule
+-30 & 51.20 \\
+-20 & 98.20 \\
+-10 & 100.00 \\
+0   & 100.00 \\
++10 & 100.00 \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}
+\end{table}
+
+\begin{figure}[tbp]
+  \centering
+  \includegraphics[width=0.9\linewidth]{accuracy_vs_SNR.png} % Use the new SNR accuracy plot
+  \caption{LoraNet Test Set Accuracy as a function of SNR (dB).}
+  \label{fig:snr_accuracy_new}
+\end{figure}
+
+\section{Discussion}
+\label{sec:discussion}
+LoraNet achieves an overall accuracy of 89.88\% on a challenging test set, with exceptional performance at specific SNR levels. The results are particularly noteworthy in low SNR conditions. For instance, achieving 98.20\% accuracy at -20dB SNR and 100.00\% at -10dB SNR significantly surpasses the performance reported for some other DL models, such as Shahid et al. \cite{b_shahid2019}, where accuracy dropped to approximately 25\% at -10 dB. LoraNet's 51.20\% accuracy at -30dB, while close to chance, still indicates some discriminative capability at extremely low signal power.
+
+The success of LoraNet can be attributed to:
+\begin{enumerate}
+    \item \textbf{Spectrogram Representation:} Time-frequency spectrograms effectively visualize LoRa's characteristic chirps, enabling CNNs to learn these patterns even amidst substantial noise.
+    \item \textbf{Diverse and Challenging Training Data:} Training on LoRa signals with varied SF, BW, and a continuous SNR range from -30dB to +10dB, along with diverse Non-LoRa signals, ensured the model learned generalizable features.
+    \item \textbf{Optimized CNN Architecture:} The multi-block CNN architecture (detailed in Table \ref{tab:loranet_architecture}) with progressive feature extraction, Batch Normalization for stable training, Max Pooling for spatial hierarchy, Global Average Pooling for efficiency, and Dropout for regularization, contributes to its robust performance. The architecture with approximately 985k parameters strikes a balance between capacity and generalization.
+    \item \textbf{Appropriate Training Strategy}: The use of Adam optimizer with weight decay and a StepLR scheduler (Fig. \ref{fig:lr_schedule}) helped in navigating the loss landscape and converging to a good solution, as evidenced by the learning curves (Fig. \ref{fig:learning_curves}) which show stable convergence and a best validation accuracy of 93.95\%.
+\end{enumerate}
+
+The confusion matrix (Fig. \ref{fig:confusion_matrix_new}) and classification report (Table \ref{tab:classification_report_new}) reveal that the model has a high recall (0.9848) for LoRa signals, meaning it is very good at identifying actual LoRa signals. Its precision for LoRa is 0.8403, indicating some Non-LoRa signals are misclassified as LoRa. Conversely, it has high precision (0.9816) for Non-LoRa signals (few LoRa signals misclassified as Non-LoRa) but a lower recall (0.8128), suggesting it misses some Non-LoRa signals (classifying them as LoRa). This trade-off might be tunable depending on the application's specific requirements (e.g., minimizing false alarms vs. maximizing detection).
+
+LoraNet's direct, end-to-end deep learning approach offers a streamlined alternative to hybrid systems like HybNet \cite{b_tesfay2021}, which combines traditional signal processing with CNNs, or the multi-stage framework by Mutescu et al. \cite{b_mutescu2025} that uses signal processing for initial detection followed by CNNs. While hybrid systems can leverage the strengths of both domains, they may introduce greater complexity in design and optimization. LoraNet's strong performance, particularly its robustness at very low SNRs (e.g., 98.20\% at -20dB), suggests that a carefully designed and trained CNN can achieve excellent results for the fundamental task of LoRa signal presence detection directly from spectrograms. This is advantageous in scenarios prioritizing simplicity and rapid deployment of a learned detector. Furthermore, unlike traditional methods focusing on preamble detection \cite{b_kang2022, b_tapparel2023} which can be susceptible to preamble corruption, LoraNet learns features from the entire signal burst represented in the spectrogram, potentially offering more resilience.
+
+\section{Conclusion}
+\label{sec:conclusion}
+This paper introduced LoraNet, a Convolutional Neural Network designed for the binary classification of LoRa signals from their spectrogram representations. Trained and evaluated on a comprehensive dataset featuring LoRa signals with diverse parameters and SNRs ranging from -30 dB to +10 dB, LoraNet achieved an overall test accuracy of 89.88\%. More significantly, it demonstrated exceptional robustness in low-SNR environments, achieving 98.20\% accuracy at -20dB and perfect 100.00\% accuracy from -10dB SNR upwards. Such high reliability, particularly crucial in noisy urban or industrial environments where LoRa technology is frequently deployed, can directly translate to more efficient spectrum sharing, minimized packet loss, and enhanced overall network performance. For instance, LoraNet's capabilities could enable more effective listen-before-talk (LBT) mechanisms or assist in the rapid identification of interference sources, thereby improving the quality of service in dense IoT deployments.
+
+LoraNet's performance underscores the capability of deep CNNs to learn discriminative features from spectrograms effectively, offering substantial advantages for LoRa signal detection in challenging noise conditions. This work provides a strong foundation for reliable LoRa signal detection, which is critical for improving spectrum utilization and ensuring robust LoRa network operations. Future work could explore real-world deployment on edge devices, evaluation against a broader range of interferers, and potential architectural adaptations for fine-grained LoRa parameter estimation.
+
+\begin{thebibliography}{00}
+\bibitem{b_lora_survey} U. Raza, P. Kulkarni, and M. Sooriyabandara, ``Low power wide area networks: An overview,'' \textit{IEEE Communications Surveys \& Tutorials}, vol. 19, no. 2, pp. 855–873, 2017.
+
+\bibitem{b_dl_comms_survey} T. O'Shea and J. Hoydis, ``An introduction to deep learning for the physical layer,'' \textit{IEEE Transactions on Cognitive Communications and Networking}, vol. 3, no. 4, pp. 563–575, Dec. 2017.
+
+\bibitem{b_shahid2019} A. Shahid, M. Hammouda, V. Magnin, and D. Morche, ``Automatic modulation classification of LoRa signals using deep learning,'' \textit{Sensors}, vol. 23, no. 4, p. 1763, 2023.
+
+\bibitem{b_tesfay2021} M. W. Tesfay, P. K. Sharma, S. Chatzinotas, B. Ottersten, and J. D. Skaalh, ``HybNet: A Hybrid Deep Learning LoRa Symbol Detector,'' \textit{arXiv preprint arXiv:2111.10557}, 2021. [Online]. Available: \url{https://arxiv.org/pdf/2111.10557}
+
+\bibitem{b_kang2022} B. Kang, ``LoRa Preamble Detection with Optimized Thresholds,'' \textit{IEEE Communications Letters}, vol. 27, no. 3, pp. 832–836, Mar. 2023.
+
+\bibitem{b_tapparel2023} C. Tapparel, G. Liva, and F. M. J. Willems, ``LoRa Preamble Detection Robust to Inter-Channel Interference,'' \textit{IEEE Transactions on Communications}, vol. 71, no. 11, pp. 6565–6577, Nov. 2023. [Online]. Available: \url{https://research.tue.nl/en/publications/lora-preamble-detection-robust-to-inter-channel-interference}
+
+\bibitem{b_vangelista2024} L. Vangelista and G. Calvagno, ``LoRaWAN Channel Activity Detection: Implementation and Performance Evaluation,'' \textit{IEEE Internet of Things Journal}, Early Access, 2024. doi: 10.1109/JIOT.2024.3410805. [Online]. Available: \url{https://ieeexplore.ieee.org/document/10659195}
+
+\bibitem{b_horne2023} D. Horne, J. P. Martin, A. C. Foster, R. M. Luigam, S. R. Black, and W. H. Robinson, ``Classification of LoRa signals with real-time validation using the Xilinx Radio Frequency System-on-Chip,'' in \textit{2023 IEEE International Symposium on Signal Processing and Information Technology (ISSPIT)}, pp. 362–367, Dec. 2023. [Online]. Available: \url{https://www.researchgate.net/publication/369000528_Classification_of_LoRa_signals_with_real-time_validation_using_the_Xilinx_Radio_Frequency_System-on-Chip}
+
+\bibitem{b_mutescu2025} P. M. Mutescu, A. M. Voicu, C. S. Valeanu, O. Fratu, and S. Halunga, ``A Hybrid Spectrum Sensing Framework for LoRaWAN Based on Advanced AI Models,'' \textit{Sensors}, vol. 25, no. 9, p. 2748, 2025. [Online]. Available: \url{https://www.mdpi.com/1424-8220/25/9/2748}
+\end{thebibliography}
+\vspace{12pt}
+% \color{red}
+% IEEE conference templates contain guidance text for composing and formatting conference papers. Please ensure that all template text is removed from your conference paper prior to submission to the conference. Failure to remove the template text from your paper may result in your paper not being published.
+
+\end{document}

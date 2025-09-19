@@ -1,8 +1,8 @@
 # LoraNet: Robust LoRa Signal Classification using Deep Convolutional Neural Networks and Spectrograms
 
 **Authors:**
-*   Shashwat Srivastava ([@shashwat39](https://github.com/shashwat39))
 *   Siddhartha Arora ([@siddhartha254](https://github.com/siddhartha254))
+*   Shashwat Srivastava ([@shashwat39](https://github.com/shashwat39))
 *   Satyam Agarwal
 
 This project introduces **LoraNet**, a Convolutional Neural Network (CNN) specifically designed for the binary classification of LoRa signals—distinguishing LoRa transmissions from Non-LoRa signals (e.g., noise or other interference) using their spectrogram representations. LoRa (Long Range) technology is a cornerstone for many Low-Power Wide-Area Network (LPWAN) applications, demanding reliable signal detection for efficient spectrum utilization and robust communication.
